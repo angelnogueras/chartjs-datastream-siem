@@ -11,7 +11,7 @@ Usage:
 
 4. Create ".env" file with content like:
 
-	> 	SECTION\_DS=\<.edgerc section name with credentials valid to access DataStream\>
+> SECTION\_DS=\<.edgerc section name with credentials valid to access DataStream\>
 > 
 > 	STREAM\_AGG\_ID=\<datastream stream id\>
 > 
@@ -21,9 +21,10 @@ Usage:
 > 
 > 	SIEM\_CFG\_ID=\<SIEM Integration configuration ID\>
 > 
-> 	SIEM\_HOURS=\<number of hours of data you want to collect\>
+> 	SIEM\_HOURS=\<number of hours of data you want to collect\>
 
-	Take a look at Authorization ([https://developer.akamai.com/introduction/Prov_Creds.html](https://developer.akamai.com/introduction/Prov_Creds.html)) and Credentials ([https://developer.akamai.com/introduction/Conf_Client.html](https://developer.akamai.com/introduction/Prov_Creds.html)) sections in Akamai CLI Getting Started guide.
+	
+Take a look at Authorization ([https://developer.akamai.com/introduction/Prov_Creds.html](https://developer.akamai.com/introduction/Prov_Creds.html)) and Credentials ([https://developer.akamai.com/introduction/Conf_Client.html](https://developer.akamai.com/introduction/Prov_Creds.html)) sections in Akamai CLI Getting Started guide.
 
 5. Start the server:
   npm start (run the server in production mode)
