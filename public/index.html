@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DataStream report</title>
+	<script src="js/moment.min.js"></script>
+  <script src="https://www.chartjs.org/dist/2.8.0/Chart.min.js"></script>
+  <style>
+  * {
+    font-family: sans-serif;
+    font-size: 0.9em;
+  }
+	canvas{
+		-moz-user-select: none;
+		-webkit-user-select: none;
+		-ms-user-select: none;
+	}
+  #controls {
+    border: 1px solid darkgray;
+    background-color: lightgray;
+    padding: 3px 20px;
+    width: 75%;
+    margin-top: 20px;
+  }
+  #message {
+    width: 80%;
+    border-radius: 20px;
+    background-color: red;
+    color: white;
+    line-height: 2em;
+    text-align: center;
+  }
+	</style>
+</head>
+<body>
+  <div style="width:75%;">
+		<canvas id="canvas"></canvas>
+	</div>
+  <div id="controls">
+    <button id="update">update now</button>
+      <input type="checkbox" id="autoupdate"> <label for="autoupdate">Autoupdate</label>
+  </div>
+  <div id="message"></div>
+
+<script>
+  const errorDiv = document.getElementById('message');
+
+  document.getElementById('update').addEventListener('click', (evt) => {
+    evt.preventDefault();
+    loadData();
+  });
+
+  let inter;
+  document.getElementById('autoupdate').addEventListener('change', (evt) => {
+    evt.preventDefault();
+    if (evt.target.checked) {
+      inter = setInterval( () => {
+        //console.log("updating...");
+        loadData();
+      }, 60 * 1000);
+    }
+    else {
+      //console.log("Auto update off...");
+      clearInterval(inter);
+    }
+  });
+
+  window.onload = function() {
+    const ctx = document.getElementById('canvas').getContext('2d');
+    ctx.canvas.width = 1000;
+    ctx.canvas.height = 300;
+    window.currentReport = new Chart(ctx, config);
+
+    loadData();
+  };
+
+  /**
+   * Parse data from DataStream response into time (data_time) and value (data_y)
+   * @param  {Array} data       DataStream data
+   * @param  {String} data_time json key for time
+   * @param  {String} data_y    json key for value (y-axis)
+   * @return {Array}            parsed data
+   */
+  const parseData = (data, data_time, data_y) => {
+    let result = data.map( (obj) => {
+      const res = {
+        t: obj[data_time],
+        y: obj[data_y]
+      };
+      return res;
+    });
+    result.sort( (a,b) => {
+      return new Date(b.t) - new Date(a.t);
+    });
+    return result;
+  };
+
+  /**
+   * Parse data from SIEM Integration response
+   */
+  const parseSiemData = data => {
+    const VAL = 1;
+    const data2 = {};
+    for (let i=0,n=data.length; i<n; i++) {
+      let key = data[i].httpMessage.start;
+      if (Object.keys(data2).includes(key)) {
+        data2[key] += VAL;
+      }
+      else {
+        data2[key] = VAL;
+      }
+    }
+    
+    return Object.keys(data2).map(o => {
+      return {t: new Date(o*1000), y: data2[o]}
+    }).sort( (a,b) => {
+      return b.t - a.t;
+    });
+  }
+
+  /**
+   * Get DataStream data, parse and update graph.
+   */
+  const loadData = () => {
+    fetch('/ds').then(res => res.json()).then( res => {
+      // If response, remove warning
+      errorDiv.innerHTML = '';
+
+      // Update graph
+      config.data.datasets[0].data = parseData(res.data, 'endTime', '2xx');
+      config.data.datasets[1].data = parseData(res.data, 'endTime', '3xx');
+      config.data.datasets[2].data = parseData(res.data, 'endTime', '4xx');
+      config.data.datasets[3].data = parseData(res.data, 'endTime', '5xx');
+      window.currentReport.update();
+    }).catch( error => {
+      console.error(error);
+      errorDiv.innerHTML += "Cannot connect to the DS server...<br>";
+    });
+    fetch('/siem_info').then(res => res.json()).then( res => {
+      // If response, remove warning
+      errorDiv.innerHTML = '';
+
+      // Update graph
+      config.data.datasets[4].data = parseSiemData(res);
+      window.currentReport.update();
+    }).catch( error => {
+      console.error(error);
+      errorDiv.innerHTML += "Cannot connect to the SIEM Integration server...<br>";
+    });
+  }
+
+  const chartColors = {
+	  red: 'rgb(255, 99, 132)',
+	  orange: 'rgb(255, 159, 64)',
+	  yellow: 'rgb(255, 205, 86)',
+	  green: 'rgb(75, 192, 192)',
+	  blue: 'rgb(54, 162, 235)',
+	  purple: 'rgb(153, 102, 255)',
+	  grey: 'rgb(201, 203, 207)'
+  };
+
+  const config = {
+    	type: 'bar',
+			data: {
+				datasets: [ ]
+			},
+			options: {
+				scales: {
+					xAxes: [{
+						type: 'time',
+						distribution: 'series',
+						ticks: {
+							source: 'data',
+							autoSkip: true
+						}
+					}],
+					yAxes: [{
+						scaleLabel: {
+							display: true,
+							labelString: 'Response Codes'
+						}
+					}]
+				},
+				tooltips: {
+					intersect: false,
+					mode: 'index',
+					callbacks: {
+						label: function(tooltipItem, myData) {
+							let label = myData.datasets[tooltipItem.datasetIndex].label || '';
+							if (label) {
+								label += ': ';
+							}
+							label += parseFloat(tooltipItem.value).toFixed(2);
+							return label;
+						}
+					}
+				}
+			}
+  };
+
+  // Set labels and colors for every data
+  [
+    { label: '2xx', color: chartColors.green },
+    { label: '3xx', color: chartColors.blue },
+    { label: '4xx', color: chartColors.purple },
+    { label: '5xx', color: chartColors.red }
+  ].forEach( (ds) => {
+    config.data.datasets.push({
+      label: ds.label,
+      backgroundColor: Chart.helpers.color(ds.color).alpha(0.5).rgbString(),
+      borderColor: ds.color,
+      data: null,
+      type: 'line',
+      pointRadius: 0,
+      fill: false,
+      lineTension: 0,
+      borderWidth: 2
+    });
+  });
+
+  // Add SIEM data
+  config.data.datasets.push({
+    label: 'SIEM',
+    backgroundColor: Chart.helpers.color(chartColors.orange).alpha(0.5).rgbString(),
+    borderColor: chartColors.orange,
+    data: null,
+    type: 'bubble',
+    pointRadius: 0,
+    fill: false,
+    lineTension: 0,
+    borderWidth: 2
+  });
+
+
+</script>
+
+</body>
+</html>

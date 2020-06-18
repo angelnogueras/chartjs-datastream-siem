@@ -1,0 +1,19 @@
+{
+  "name": "chartjs-datastream-siem",
+  "version": "1.0.0",
+  "description": "Simple client-server app consuming data from Akamai DataStream and Akamai SIEM Integration and showing it using Chart.js",
+  "main": "server.js",
+  "scripts": {
+    "watch": "nodemon server.js",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "author": "Angel Nogueras (apalomar@akamai.com)",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "edgegrid": "^3.0.8",
+    "express": "^4.17.1",
+    "moment": "^2.26.0",
+    "open": "^7.0.4"
+  }
+}
